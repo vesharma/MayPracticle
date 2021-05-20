@@ -1,0 +1,28 @@
+---
+  - hosts: localhost
+    become: yes
+    vars: 
+      domaincontrollervar: "jbossdomain" 
+    
+    tasks:
+    
+    - name: "echo hello jboss node"
+      yum:
+         name: nginx
+         state: present
+      when: inventory_hostname in groups['nodes']
+
+    - name: print if machine is eligible for symbolic
+      debug:
+        msg: "machine: {{ inventory_hostname }} is eligible for symbolic link!"
+      when: inventory_hostname in groups['nodes']
+  
+
+    - name: "Line in file to replace file strings"
+      lineinfile: 
+          path: /root/ansib/DC-host-master.xml
+          regexp: '^urn:jboss:domain:8.0'
+          line: "urn:jboss:domain:8.0" name="{{ ansible_hostname }}"
+      when: inventory_hostname in groups['domain']  
+        
+  

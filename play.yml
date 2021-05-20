@@ -1,0 +1,32 @@
+---
+- hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: read the html file
+      set_fact:
+        file_lines: "{{ lookup('file', 'htmlfile.html').split('\n') }}"
+
+    - debug:
+        var: file_lines
+        verbosity: 1
+      
+    - name: get relevant list items
+      set_fact:
+        titles: "{{ file_lines|select('search', '<th>')|map('regex_replace', '<th>(.*)</th>', '\\1')|list }}"
+        values: "{{ file_lines|select('search', '<td>')|map('regex_replace', '<td>(.*)</td>', '\\1')|list }}"
+
+    - debug:
+        var: titles
+        verbosity: 1
+        
+    - debug:
+        var: values
+        verbosity: 1
+
+    - name: create the dict
+      set_fact:
+        title_values: "{{ dict(titles|zip(values)) }}"
+
+    - debug:
+        var: title_values

@@ -1,0 +1,16 @@
+---
+ - hosts: all
+   ignore_errors: yes
+   tasks:
+   - copy:
+       content: |
+         HOSTNAME;IPADDRESS;OSNAME;OSVERSION;PROCESSOR;ARCHITECTURE;MEMORY;SWAP;
+         {% for host in hostvars %}
+         {% set vars = hostvars[host|string] %}
+         {{ vars.ansible_hostname }};{{ vars.ansible_default_ipv4.address }};{{ vars.ansible_distribution }};{{ vars.ansible_distribution_version }};{{ vars.ansible_processor[1] }};{{ vars.ansible_architecture }};{{ (vars.ansible_memtotal_mb/1024)|round|int }};{{ (vars.ansible_swaptotal_mb/1024)|round|int }};
+         {% endfor %}
+       dest: /root/ansib/systems.csv
+       backup: yes
+     ignore_errors: yes
+     run_once: yes
+     delegate_to: localhost

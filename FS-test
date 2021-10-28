@@ -1,0 +1,275 @@
+java-agent
+---
+  - hosts: localhost
+    become: true
+
+   #Plan:
+     # Download latest package
+     # Copy Setup from jumpserver to tmp location
+     # install zip through yum
+     # extract file in /opt/appdynamics
+     # replace Controller.xml
+
+
+    vars:
+       Setuplocation: "/root/AppDynamics-Setup"
+       javaagent: "AppServerAgent-21*.zip"
+       machineagent: "appdynamics-machine-agent-21*.zip"
+       netvizagent: "appd-netviz-x64-linux-21*.zip"
+	   controller-host: "llppappdctl.onefiserv.net"
+	   application-name: "Rulemanager-dit1"
+	   tier-name: "DisputeExpert_Jboss"
+	   account-access-key: "8843970b-03c5-41d6-b2f5-4438ce38bde2"
+	   Javaagent_install_dir: "/opt/appdynamics/java-agent"
+	   JbossHostfile: "DC-host-master.xml"
+	   
+       
+       destvar: "/tmp/appdynamics"
+       Deploymentlocation: "/opt/appdynamics"
+       modevar: "775"
+   
+    tasks:
+    
+    - name: Test ping
+      ping: 
+   
+    - name: 1. copy javaagent in location
+      copy: 
+         src:  "{{ Setuplocation }}/{{ item }}"
+         dest:  "{{ destvar }}"
+         mode: 775
+         remote_src: yes
+         force: yes
+         fail_on_missing: yes
+      register: outputcopy
+      failed_when: false
+      with_items:
+         - "{{ javaagent }}"
+            
+    - debug:
+        msg: " {{ Setuplocation }}/{{ javaagent }}"
+
+    - name: installing zip with yum
+      yum:
+         name: unzip
+         state: latest
+      register: yumoutput   
+      changed_when: yumoutput.rc != 0  
+
+
+    - name:  Create directories
+      file:
+         path: "{{ item }}"
+         state: directory
+         mode: 775
+         recurse: yes
+      with_items:
+         - /opt/appdynamics/java-agent
+          
+
+    - name: extract setup in /opt/appdynamics
+      unarchive: 
+         src: "{{ item.src }}"
+         dest: "{{ item.dest }}"
+      with_items:
+       - { src: "{{ javaagent }}" ,dest: "{{ Javaagent_install_dir }}", mode: '775' }
+     
+    - name: For taking backup
+      copy:
+         src: "{{ item }}"
+         dest: "{{ item }}_{{ansible_date_time.date}}_{{ansible_date_time.time}}"
+         backup: true
+      with_items:
+         - "{{ Javaagent_install_dir }}/conf/controller-info.xml"
+         - "{{ Javaagent_install_dir }}/ver21.*/conf/controller-info.xml"
+
+    - name: For replacing /opt/appdynamics/java-agent/conf/controller-info.xml values
+      replace:
+         path: "{{ Javaagent_install_dir }}/conf/controller-info.xml"
+         regexp: "{{ item.regexp }}"
+         replace: "{{ item.replace }}"
+      with_items:   
+         - { regexp: "<controller-host></controller-host>" , replace: "<controller-host> {{ controller-host }} </controller-host>" }
+         - { regexp: "<controller-port></controller-port>" , replace: "<controller-port>443</controller-port>" }
+         - { regexp: "<controller-ssl-enabled></controller-ssl-enabled>" , replace: "<controller-ssl-enabled>true</controller-ssl-enabled>" }
+         - { regexp: "<application-name></application-name>" , replace: "<application-name> {{ application-name }} </application-name>" }
+         - { regexp: "<tier-name></tier-name>" , replace: "<tier-name> {{ tier-name }} </tier-name>" }
+         - { regexp: "<node-name></node-name>" , replace: "<node-name> </node-name>" }
+         - { regexp: "<account-name></account-name>" , replace: "<account-name>customer1</account-name>" }
+         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>{{ account-access-key }} </account-access-key>" }
+      register: javaagentoutput 
+      changed_when: false
+
+
+    - name: For replacing /opt/appdynamics/java-agent/ver21.4.0.32403/conf/controller-info.xml values
+      replace:
+         path: "{{ Javaagent_install_dir }}/ver21.4.0.32403/conf/controller-info.xml"
+         regexp: "{{ item.regexp }}"
+         replace: "{{ item.replace }}"
+      with_items:
+         - { regexp: "<controller-host></controller-host>" , replace: "<controller-host> {{ controller-host }} </controller-host>" }
+         - { regexp: "<controller-port></controller-port>" , replace: "<controller-port>443</controller-port>" }
+         - { regexp: "<controller-ssl-enabled></controller-ssl-enabled>" , replace: "<controller-ssl-enabled>true</controller-ssl-enabled>" }
+         - { regexp: "<application-name></application-name>" , replace: "<application-name> {{ application-name }} </application-name>" }
+         - { regexp: "<tier-name></tier-name>" , replace: "<tier-name> {{ tier-name }} </tier-name>" }
+         - { regexp: "<node-name></node-name>" , replace: "<node-name> </node-name>" }
+         - { regexp: "<account-name></account-name>" , replace: "<account-name>customer1</account-name>" }
+         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>{{ account-access-key }} </account-access-key>" }
+      register: Outputjavaagent1
+      ignore_errors: yes
+      changed_when: false
+
+
+    - name: Set user and file permissions
+      file: 
+        path: "{{ item }}"
+        mode: 775
+        owner: svc-lean
+        group: svc-leangrp
+      with_items:
+        - "{{ Javaagent_install_dir }}"
+      register: FilePermissionvar
+      changed_when: false
+        
+    - name: to add lines in jboss host.xml
+      blockinfile:
+        dest: /opt/jboss/jbossDC/configuration/"{{ JbossHostfile }}"
+        block: |
+            <!-- Adding Appdynamics configuration -->
+            <option value="-javaagent:{{ Javaagent_install_dir }}/javaagent.jar"/>
+            <option value="-Dappdynamics.agent.applicationName={{ application-name }}"/>
+            <option value="-Dappdynamics.agent.tierName={{tier-name}}"/>
+
+            <!-- End of Appd Configuration -->
+        insertbefore: "</jvm-options>"
+
+    - name: reload daemon
+      shell: systemctl daemon-reload
+
+    - name: to restart jboss services
+      service: 
+        name:  jboss-eap-rhel.sh
+        pattern: /etc/init.d/jboss-eap-rhel.sh
+        state: restarted
+   
+   
+---Ma   
+        
+---
+  - hosts: localhost
+    become: true
+
+   #Plan:
+     # Download latest package
+     # Copy Setup from jumpserver to tmp location
+     # install zip through yum
+     # extract file in /opt/appdynamics
+     # replace Controller.xml
+
+
+    vars:
+       Setuplocation: "/root/AppDynamics-Setup"
+       javaagent: "AppServerAgent-21*.zip"
+       machineagent: "appdynamics-machine-agent-21*.zip"
+       netvizagent: "appd-netviz-x64-linux-21*.zip"
+	   controller-host: "llppappdctl.onefiserv.net"
+	   application-name: "Rulemanager-dit1"
+	   tier-name: "DisputeExpert_Jboss"
+	   account-access-key: "8843970b-03c5-41d6-b2f5-4438ce38bde2"
+	   Javaagent_install_dir: "/opt/appdynamics/java-agent"
+	   machineagent_install_dir: "/opt/appdynamics/machine-agent
+	   JbossHostfile: "DC-host-master.xml"
+	   
+       
+       destvar: "/tmp/appdynamics"
+       Deploymentlocation: "/opt/appdynamics"
+       modevar: "775"
+   
+    tasks:
+    
+    - name: Test ping
+      ping: 
+   
+    - name: 1. copy machineagent in location
+      copy: 
+         src:  "{{ Setuplocation }}/{{ item }}"
+         dest:  "{{ destvar }}"
+         mode: 775
+         remote_src: yes
+         force: yes
+         fail_on_missing: yes
+      register: outputcopy
+      failed_when: false
+      with_items:
+         - "{{ machineagent }}"
+            
+    - debug:
+        msg: " {{ Setuplocation }}/{{ machineagent }}"
+
+    - name: installing zip with yum
+      yum:
+         name: unzip
+         state: latest
+      register: yumoutput   
+      changed_when: yumoutput.rc != 0  
+
+
+    - name:  Create directories
+      file:
+         path: "{{ item }}"
+         state: directory
+         mode: 775
+         recurse: yes
+      with_items:
+         - "{{ machineagent_install_dir }}"
+          
+
+    - name: extract setup in /opt/appdynamics
+      unarchive: 
+         src: "{{ item.src }}"
+         dest: "{{ item.dest }}"
+      with_items:
+       - { src: "{{ machineagent }}" ,dest: "{{ machineagent_install_dir }}", mode: '775' }
+     
+    - name: For taking backup
+      copy:
+         src: "{{ item }}"
+         dest: "{{ item }}_{{ansible_date_time.date}}_{{ansible_date_time.time}}"
+         backup: true
+      with_items:
+         - "{{ machineagent_install_dir }}/conf/controller-info.xml"
+         - "{{ machineagent_install_dir }}/ver21.*/conf/controller-info.xml"
+
+    - name: For replacing "{{machineagent_install_dir}}"/conf/controller-info.xml values
+      replace:
+         path: "{{ machineagent_install_dir }}/conf/controller-info.xml"
+         regexp: "{{ item.regexp }}"
+         replace: "{{ item.replace }}"
+      with_items:   
+         - { regexp: "<controller-host></controller-host>" , replace: "<controller-host> {{ controller-host }} </controller-host>" }
+         - { regexp: "<controller-port></controller-port>" , replace: "<controller-port>443</controller-port>" }
+         - { regexp: "<controller-ssl-enabled></controller-ssl-enabled>" , replace: "<controller-ssl-enabled>true</controller-ssl-enabled>" }
+         - { regexp: "<account-name></account-name>" , replace: "<account-name>customer1</account-name>" }
+         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>{{ account-access-key }} </account-access-key>" }
+      register: machineagentoutput 
+      changed_when: false
+
+    - name: Set user and file permissions
+      file: 
+        path: "{{ item }}"
+        mode: 775
+        owner: svc-lean
+        group: svc-leangrp
+      with_items:
+        - "{{ machineagent_install_dir }}"
+      register: FilePermissionvar
+      changed_when: false
+        
+    - name: reload daemon
+      shell: {{ machineagent_install_dir }}/bin/machine-agent
+
+    - name: to restart jboss services
+      service: 
+        name:  appdynamics_machine-agent
+        pattern: /etc/init.d/jboss-eap-rhel.sh
+        state: restarted        

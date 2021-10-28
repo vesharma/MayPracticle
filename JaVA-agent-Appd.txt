@@ -18,7 +18,7 @@
 	   controller-host: "llppappdctl.onefiserv.net"
 	   application-name: "Rulemanager-dit1"
 	   tier-name: "DisputeExpert_Jboss"
-	   account-access-key: "8843970b-03c5-41d6-b2f5-4438ce38bde2"
+	   account-access-key: "88 5-4438 "
 	   Javaagent_install_dir: "/opt/appdynamics/java-agent"
 	   JbossHostfile: "DC-host-master.xml"
 	   

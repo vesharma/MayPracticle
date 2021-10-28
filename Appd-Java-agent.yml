@@ -84,14 +84,14 @@
          regexp: "{{ item.regexp }}"
          replace: "{{ item.replace }}"
       with_items:   
-         - { regexp: "<controller-host></controller-host>" , replace: "<controller-host>elapbctl.onefiserv.net</controller-host>" }
+         - { regexp: "<controller-host></controller-host>" , replace: "<controller-host>ela ctl.onefiserv.net</controller-host>" }
          - { regexp: "<controller-port></controller-port>" , replace: "<controller-port>443</controller-port>" }
          - { regexp: "<controller-ssl-enabled></controller-ssl-enabled>" , replace: "<controller-ssl-enabled>true</controller-ssl-enabled>" }
-         - { regexp: "<application-name></application-name>" , replace: "<application-name>Rulemanager-dit1</application-name>" }
+         - { regexp: "<application-name></application-name>" , replace: "<application-name> r-dit1</application-name>" }
          - { regexp: "<tier-name></tier-name>" , replace: "<tier-name>dit1</tier-name>" }
          - { regexp: "<node-name></node-name>" , replace: "<node-name>node1</node-name>" }
          - { regexp: "<account-name></account-name>" , replace: "<account-name>customer1</account-name>" }
-         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>a1ssfsf12-23-232-45244-12fs</account-access-key>" }
+         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>a</account-access-key>" }
       register: javaagentoutput 
       changed_when: false
 
@@ -109,7 +109,7 @@
          - { regexp: "<tier-name></tier-name>" , replace: "<tier-name>dit1</tier-name>" }
          - { regexp: "<node-name></node-name>" , replace: "<node-name>node1</node-name>" }
          - { regexp: "<account-name></account-name>" , replace: "<account-name>customer1</account-name>" }
-         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>a1ssfsf12-23-232-45244-12fs</account-access-key>" }
+         - { regexp: "<account-access-key></account-access-key>" , replace: "<account-access-key>a 5244-12fs</account-access-key>" }
       register: Outputjavaagent1
       ignore_errors: yes
       changed_when: false
